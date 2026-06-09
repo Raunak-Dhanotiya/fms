@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="dataSourceStorageLocal" created-in="IU-261.23567.138">
+    <data-source name="Microsoft SQL Server" uuid="0c6128e9-3d00-40ce-a27f-ac46ad8ffc6a">
+      <database-info product="" version="" jdbc-version="" driver-name="" driver-version="" dbms="MSSQL_LOCALDB" />
+      <secret-storage>master_key</secret-storage>
+      <user-name>sa</user-name>
+      <schema-mapping />
+    </data-source>
+    <data-source name="DATABASE_CLEANUP_MANAGEMENT.sql" uuid="5f297491-ac5a-4d72-843b-fb556be47b7b">
+      <database-info product="" version="" jdbc-version="" driver-name="" driver-version="" dbms="DERBY" />
+      <secret-storage>master_key</secret-storage>
+      <schema-mapping />
+    </data-source>
+  </component>
+</project>

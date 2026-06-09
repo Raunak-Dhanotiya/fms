@@ -1,0 +1,45 @@
+plugins {
+	id 'org.springframework.boot' version '2.4.5'
+	id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+	id 'java'
+}
+
+group = 'com.fms.app'
+version = 'fms'
+sourceCompatibility = '1.8'
+apply plugin: 'war'
+apply plugin: 'application'
+
+repositories {
+	mavenCentral()
+}
+configurations.all {
+    exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-mail'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.session:spring-session-core'
+
+	implementation 'org.springframework.boot:spring-boot-starter-cache'
+	
+	implementation group: 'io.jsonwebtoken', name: 'jjwt', version: '0.9.1'
+	implementation group: 'org.json', name: 'json', version: '20210307'
+	
+	implementation group: 'org.modelmapper', name: 'modelmapper', version: '2.4.3'
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+	runtimeOnly 'com.microsoft.sqlserver:mssql-jdbc'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.security:spring-security-test'
+	// add log4j2 dependency
+    implementation 'org.springframework.boot:spring-boot-starter-log4j2'
+    implementation group: 'com.itextpdf', name: 'itextpdf', version: '5.5.13.2'
+}
+
+test {
+	useJUnitPlatform()
+}

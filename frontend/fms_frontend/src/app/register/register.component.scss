@@ -1,0 +1,152 @@
+@import '../../scss/variables';
+
+.container {
+  width: 100%;
+  height: 100vh;
+  background-image: url('/assets/images/Lowpolybig.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: #f5f7fb;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.register-box {
+  width: 420px;
+  background: white;
+  padding: 40px;
+  border-radius: 10px;
+  box-shadow: 0px 2px 10px rgba(0,0,0,0.1);
+}
+
+.logo {
+  width: 200px;
+  display: block;
+  margin: auto;
+  margin-bottom: 20px;
+}
+
+h2 {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.field-group {
+  margin-bottom: 15px;
+}
+
+.form-control {
+  width: 100% !important;
+  height: 45px !important;
+  padding: 10px 14px !important;
+  border: 1px solid #dcdcdc !important;
+  border-radius: 5px !important;
+  font-size: 14px !important;
+  box-sizing: border-box;
+  outline: none;
+  background: #fff !important;
+  color: #333 !important;
+}
+
+.form-control:focus {
+  border-color: #00a9c4;
+  box-shadow: 0 0 0 2px rgba(0, 169, 196, 0.15);
+}
+
+/* Password field wrapper - positions the eye icon inside the input */
+.password-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.password-wrapper .form-control {
+  padding-right: 45px;
+}
+
+.eye-btn {
+  position: absolute;
+  right: 1px;
+  top: 1px;
+  bottom: 1px;
+  width: 42px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #00a9c4;
+  font-size: 15px;
+  border-radius: 0 4px 4px 0;
+  outline: none;
+}
+
+.eye-btn:hover {
+  background: rgba(0, 169, 196, 0.08);
+}
+
+/* Select / Role dropdown fix */
+.select-control {
+  appearance: auto !important;
+  -webkit-appearance: menulist !important;
+  -moz-appearance: menulist !important;
+  cursor: pointer;
+  color: #333 !important;
+  height: 45px !important;
+  line-height: normal !important;
+}
+
+.select-control option {
+  color: #333;
+  font-size: 14px;
+}
+
+.select-control option[value=""][disabled] {
+  color: #999;
+}
+
+.register-btn {
+  width: 100%;
+  height: 45px;
+  border: none;
+  background: #00a9c4;
+  color: white;
+  border-radius: 5px;
+  font-weight: bold;
+  font-size: medium;
+  cursor: pointer;
+}
+
+.register-btn:hover {
+  background-color: #02adc9;
+}
+
+.login-link {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 14px;
+}
+
+.login-link span {
+  color: #007bff;
+  cursor: pointer;
+  margin-left: 5px;
+  font-weight: 600;
+}
+
+.login-link span:hover {
+  text-decoration: underline;
+}
+
+.error-text {
+  color: #fa6767;
+  font-size: 85%;
+  margin-top: 4px;
+  font-family: Raleway, sans-serif;
+}
+
+.spinner-color {
+  color: $toolbar;
+}

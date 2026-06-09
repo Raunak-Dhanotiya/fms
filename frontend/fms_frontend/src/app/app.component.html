@@ -1,0 +1,179 @@
+<nz-layout class="app-layout" *ngIf="isLogin; else logoutTemplate">
+  <nz-sider *ngIf="isLogin" class="menu-sidebar" nzCollapsible nzWidth="220px" nzBreakpoint="md" [nzCollapsedWidth]="80"
+    [(nzCollapsed)]="isCollapsed" [nzTrigger]="null">
+    <ng-container *ngIf="isCollapsed; else elseTemplate">
+      <div class="sidebar-logo">
+        <img src="../assets/images/fms_logo_collapsed.png" (click)="onclickHome()" alt="FMS"
+          style="width: 80%; height: 40%; margin-left: 12px;">
+      </div>
+    </ng-container>
+    <ng-template #elseTemplate>
+      <div class="sidebar-logo">
+        <img src="../assets/images/fms_light_new_uncollapsed.png" (click)="onclickHome()" alt="FMS"
+          style="width: 100%;">
+      </div>
+    </ng-template>
+     <!-- <h1>FMS</h1> -->
+     <div class="sidebar-menu-container" *ngIf="!isLoadingMenu; else loadingTemplate">
+       <ul nz-menu nzTheme="dark" nzMode="inline" [nzInlineCollapsed]="isCollapsed">
+         <ng-container *ngFor="let item of sideNavItems; trackBy: trackByTitle">
+           <li nz-submenu [nzTitle]="item.title" [nzIcon]="normalizeMenuIcon(item.icon)" [(nzOpen)]="item.dv"
+             (nzOpenChange)="openHandler(item)" [nzPaddingLeft]="isCollapsed?32:4">
+             <!-- Sub-processes (2nd level) -->
+             <ng-container *ngFor="let sub of item.subProcessItem; trackBy: trackByTitle">
+               <li nz-submenu [nzPaddingLeft]="30" [(nzOpen)]="sub.sdv" [nzTitle]="sub.title"
+                 (nzOpenChange)="openSubMenuHandler(sub)">
+                 <!-- Screens under sub-process (3rd level) -->
+                 <ng-container *ngFor="let screen of sub.subMenuItems; trackBy: trackByLink">
+                   <li nz-menu-item [class.active-route]="screen.isActive" class="screen-menu-item">
+                     <a [routerLink]="normalizeRoute(screen.link)"
+                        (click)="onScreenClick(screen)"
+                        class="screen-link">
+                       <span nz-icon nzType="right-circle" nzTheme="outline" class="screen-icon"></span>
+                       <span class="screen-label">{{screen.title}}</span>
+                     </a>
+                   </li>
+                 </ng-container>
+               </li>
+             </ng-container>
+             <!-- Direct menu items (2nd level without sub-process) -->
+             <ng-container *ngFor="let screen of item.subMenuItems; trackBy: trackByLink">
+               <li nz-menu-item [class.active-route]="screen.isActive" class="screen-menu-item">
+                 <a [routerLink]="normalizeRoute(screen.link)"
+                    (click)="onScreenClick(screen)"
+                    class="screen-link">
+                   <span nz-icon nzType="right-circle" nzTheme="outline" class="screen-icon"></span>
+                   <span class="screen-label">{{screen.title}}</span>
+                 </a>
+               </li>
+             </ng-container>
+           </li>
+         </ng-container>
+       </ul>
+     </div>
+     <ng-template #loadingTemplate>
+       <div class="sidebar-loading">
+         <p>Loading menu...</p>
+       </div>
+     </ng-template>
+  </nz-sider>
+  <nz-layout [ngStyle]="{'margin-left.px': !isCollapsed ?'220':'80'}">
+    <nz-header *ngIf="isLogin">
+      <div class="app-header">
+        <div nz-row>
+          <div nz-col nzFlex="auto">
+            <span class="header-trigger" (click)="isCollapsed = !isCollapsed">
+              <em class="trigger" nz-icon [nzType]="isCollapsed ? 'menu-unfold' : 'menu-fold'"></em>
+            </span>
+            <span class="headerText">
+              {{pageTitle}}
+            </span>
+          </div>
+          <div nz-col style="flex:0 0 270px" [ngStyle]="{'flex': isCollapsed ? '0 0 130px '  : '0 0 270px'}">
+            <span nz-space nzAlign="end">
+              <button mat-icon-button class="hidden-sm ellipsis" [matMenuTriggerFor]="profile"
+                [ngStyle]="{'padding':'0px !important'}" matTooltip="{{loggedInUserName}}" matTooltipPosition="left">
+                <div *ngIf="emPhoto.length >0">
+                  <div style="height: 46px;width: 46px;"><img src="{{userProfilePic}}" alt="User profile picture"
+                      style="height: 85%; width: 85%; border-radius: 50%;" /></div>
+                </div>
+                <div *ngIf="emPhoto.length ==0" style="height: 48px;width: 48px;">
+                  <span class="pi pi-user"></span>
+                </div>
+
+              </button>
+              <mat-menu #profile="matMenu" Style="margin-top: 10px;" yPosition="below">
+                  <!-- <div class="planContainer">
+                    <span class="planTitle">Plan :</span>
+                    <span class="planText">{{planName}}</span>
+                  </div>
+                  <div class="planContainer">
+                    <span class="planTitle">Organization :</span>
+                    <span class="planText">{{compName}}</span>
+                  </div> -->
+                  <button mat-menu-item (click)="onclickHome()">
+                    <mat-icon>home</mat-icon>
+                    <span>Home</span>
+                  </button>
+                  <button mat-menu-item (click)="openUserProfilePanel()">
+                    <mat-icon>person</mat-icon>
+                    <span> Profile</span>
+                  </button>
+                  <button mat-menu-item (click)="openUserChangePasswordPanel()">
+                    <mat-icon>settings</mat-icon>
+                    <span>Change Password</span>
+                  </button>
+                  <button mat-menu-item [routerLink]="['/logout']">
+                    <mat-icon>logout</mat-icon>
+                    <span> Logout</span>
+                  </button>
+              </mat-menu>
+            </span>
+          </div>
+        </div>
+      </div>
+    </nz-header>
+    <nz-content>
+      <div class="container_limit_info" [ngStyle]="{'margin-top': isLimitInfo ?'36px' :'0px'}" *ngIf="islimitExceed"
+        (click)=" isLimitInfo = !isLimitInfo">
+        <p *ngIf="isLimitInfo" class="paragraph_limit_info">{{plan_exceed_msg}}</p>
+      </div>
+
+      <!-- DATA DISPLAY SECTION - Shows fetched route data -->
+      <div *ngIf="selectedRouteData" class="data-display-panel">
+        <div class="data-panel-header">
+          <h3>{{selectedRouteData.tableName || 'Route Data'}}</h3>
+          <div class="data-panel-actions">
+            <button (click)="exportRouteData('json')" title="Export as JSON" class="export-btn">
+              <span nz-icon nzType="file-text" nzTheme="outline"></span> JSON
+            </button>
+            <button (click)="exportRouteData('csv')" title="Export as CSV" class="export-btn">
+              <span nz-icon nzType="file-excel" nzTheme="outline"></span> CSV
+            </button>
+            <button (click)="selectedRouteData = null" title="Close" class="close-btn">
+              <span nz-icon nzType="close" nzTheme="outline"></span>
+            </button>
+          </div>
+        </div>
+
+        <div *ngIf="isLoadingData" class="data-loading">
+          <p>Loading data...</p>
+        </div>
+
+        <div *ngIf="!isLoadingData && dataDisplayRows.length > 0" class="data-table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th *ngFor="let col of dataDisplayColumns" class="data-column-header">
+                  {{col | titlecase}}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of dataDisplayRows" class="data-row">
+                <td *ngFor="let col of dataDisplayColumns" class="data-cell">
+                  {{getCellValueAsString(row[col]) | slice:0:50}}<span *ngIf="getCellValueAsString(row[col]).length > 50">...</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="data-summary">
+            <span>Total Records: {{dataDisplayRows.length}}</span>
+            <span>Columns: {{dataDisplayColumns.length}}</span>
+          </div>
+        </div>
+
+        <div *ngIf="!isLoadingData && dataDisplayRows.length === 0" class="data-empty">
+          <p>No data available for this route</p>
+        </div>
+      </div>
+
+      <div class="inner-content" [ngStyle]="{'margin-top': isLimitInfo ?'0px' :'45px'}">
+        <router-outlet></router-outlet>
+      </div>
+    </nz-content>
+  </nz-layout>
+</nz-layout>
+<ng-template #logoutTemplate>
+  <router-outlet></router-outlet>
+</ng-template>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN" monitorInterval="30">
+    <Properties>
+        <Property name="LOG_PATTERN">
+            %d{yyyy-MM-dd HH:mm:ss.SSS} %5p ${hostName} --- [%15.15t] %-40.40c{1.} : %m%n%ex
+        </Property>
+    </Properties>
+    <Appenders>
+    <File name="fmsLog" fileName="logs/fmsLogs.log"
+			append="false">
+			<PatternLayout charset="UTF-16">
+				<Pattern>[%-5p][%d][%C{1}] - [%m]%n</Pattern>
+			</PatternLayout>
+		</File>
+        <Console name="ConsoleAppender" target="SYSTEM_OUT" follow="true">
+            <PatternLayout pattern="${LOG_PATTERN}"/>
+			<AppenderRef ref="fmsLog" />
+        </Console>
+    </Appenders>
+    <Loggers>
+        <Logger name="com.mfm.app.MFM" level="debug" additivity="false">
+            <AppenderRef ref="ConsoleAppender" />
+            <AppenderRef ref="fmsLog" />
+        </Logger>
+
+        <Root level="info">
+            <AppenderRef ref="ConsoleAppender" />
+			<AppenderRef ref="fmsLog" />
+        </Root>
+    </Loggers>
+</Configuration> 

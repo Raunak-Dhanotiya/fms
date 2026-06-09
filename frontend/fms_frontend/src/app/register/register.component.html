@@ -1,0 +1,138 @@
+<div class="container">
+
+    <div class="register-box">
+
+        <img
+                src="assets/images/fms_logo_dark_uncollapsed.png"
+                class="logo"
+        />
+
+        <h2>Create Account</h2>
+
+        <form [formGroup]="registerForm" autocomplete="off">
+
+            <div class="field-group">
+                <input
+                        type="text"
+                        formControlName="fullName"
+                        placeholder="Full Name"
+                        class="form-control"
+                        maxlength="64"
+                        autocomplete="off"
+                />
+                <div *ngIf="submitted && f['fullName'].errors" class="error-text">
+                    <span *ngIf="f['fullName'].errors['required']">Full Name is required.</span>
+                </div>
+            </div>
+
+            <div class="field-group">
+                <input
+                        type="email"
+                        formControlName="email"
+                        placeholder="Email"
+                        class="form-control"
+                        maxlength="64"
+                        autocomplete="off"
+                />
+                <div *ngIf="submitted && f['email'].errors" class="error-text">
+                    <span *ngIf="f['email'].errors['required']">Email is required.</span>
+                    <span *ngIf="f['email'].errors['email']">Please enter a valid email.</span>
+                </div>
+            </div>
+
+            <div class="field-group">
+                <div class="password-wrapper">
+                    <input
+                            [type]="showPassword ? 'text' : 'password'"
+                            formControlName="password"
+                            placeholder="Password"
+                            class="form-control"
+                            maxlength="64"
+                            autocomplete="new-password"
+                    />
+                    <button
+                            class="eye-btn"
+                            (click)="togglePassword()"
+                            type="button"
+                    >
+                        <em class="fa" [ngClass]="showPassword ? 'fa-eye-slash' : 'fa-eye'"></em>
+                    </button>
+                </div>
+                <div *ngIf="submitted && f['password'].errors" class="error-text">
+                    <span *ngIf="f['password'].errors['required']">Password is required.</span>
+                    <span *ngIf="f['password'].errors['minlength']">Password must be at least 6 characters.</span>
+                </div>
+            </div>
+
+            <div class="field-group">
+                <div class="password-wrapper">
+                    <input
+                            [type]="showConfirmPassword ? 'text' : 'password'"
+                            formControlName="confirmPassword"
+                            placeholder="Confirm Password"
+                            class="form-control"
+                            maxlength="64"
+                            autocomplete="new-password"
+                    />
+                    <button
+                            class="eye-btn"
+                            (click)="toggleConfirmPassword()"
+                            type="button"
+                    >
+                        <em class="fa" [ngClass]="showConfirmPassword ? 'fa-eye-slash' : 'fa-eye'"></em>
+                    </button>
+                </div>
+                <div *ngIf="submitted && f['confirmPassword'].errors" class="error-text">
+                    <span *ngIf="f['confirmPassword'].errors['required']">Confirm Password is required.</span>
+                </div>
+            </div>
+
+            <div class="field-group">
+                <select
+                        formControlName="role"
+                        class="form-control select-control"
+                >
+                    <option value="" disabled selected>Select Role</option>
+                    <option *ngFor="let role of roles" [value]="role">
+                        {{ role }}
+                    </option>
+                </select>
+                <div *ngIf="submitted && f['role'].errors" class="error-text">
+                    <span *ngIf="f['role'].errors['required']">Role is required.</span>
+                </div>
+            </div>
+
+            <div *ngIf="isRegistrationFailed" class="error-text" style="margin-bottom: 10px;">
+                {{registrationFailedMsg}}
+            </div>
+
+            <button
+                    type="button"
+                    class="register-btn"
+                    (click)="onSubmit()"
+            >
+                REGISTER
+            </button>
+
+            <div class="login-link">
+                Already have an account?
+                <span (click)="navigateLogin()">
+          Login
+        </span>
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+<ngx-spinner
+        bdColor="rgba(0, 0, 0, 0.8)"
+        size="medium"
+        class="spinner-color"
+        type="square-jelly-box"
+        [fullScreen]="true"
+>
+    <p style="color: white"> Loading... </p>
+</ngx-spinner>

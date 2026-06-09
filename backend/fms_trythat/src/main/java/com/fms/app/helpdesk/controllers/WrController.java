@@ -1,0 +1,474 @@
+
+package com.fms.app.helpdesk.controllers;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.modelmapper.ModelMapper;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+
+import com.fms.app.helpdesk.models.RequestLog;
+import com.fms.app.helpdesk.models.RequestParts;
+import com.fms.app.helpdesk.models.SlaResponseParameters;
+import com.fms.app.helpdesk.models.Wr;
+import com.fms.app.helpdesk.models.dto.EscalationDateTimeDTO;
+import com.fms.app.helpdesk.models.dto.RequestDateTimeDTO;
+import com.fms.app.helpdesk.models.dto.RequestLogOutPutDto;
+import com.fms.app.helpdesk.models.dto.RequestPartsDto;
+import com.fms.app.helpdesk.models.dto.RequestReportEqDto;
+import com.fms.app.helpdesk.models.dto.TechnicianTimeUsageDto;
+import com.fms.app.helpdesk.models.dto.WrDto;
+import com.fms.app.helpdesk.models.dto.WrFilterDTO;
+import com.fms.app.helpdesk.services.ProblemTypeServices;
+import com.fms.app.helpdesk.services.RequestLogServices;
+import com.fms.app.helpdesk.services.RequestNotificationsStepsService;
+import com.fms.app.helpdesk.services.RequestPartsService;
+import com.fms.app.helpdesk.services.RequestStepsLogService;
+import com.fms.app.helpdesk.services.RequestTechnicianService;
+import com.fms.app.helpdesk.services.SlaResponseParametersServices;
+import com.fms.app.helpdesk.services.WrServices;
+import com.fms.app.notification.controllers.RequestNotificationsController;
+import com.fms.app.security.AuthorizeUserInfo;
+import com.fms.app.utils.CommonUtil;
+import com.fms.app.utils.ResponseUtil;
+
+@Controller
+@CrossOrigin(origins = "*", exposedHeaders = "Access-Control-Allow-Origin")
+@RequestMapping(value = "/api/v1")
+public class WrController {
+	private static final Logger logger = LogManager.getLogger(WrController.class);
+	@Autowired
+	WrServices service;
+
+	@Autowired
+	ProblemTypeServices problemTypeServices;
+	
+	@Autowired
+	ModelMapper mapper;
+	
+	@Autowired
+	RequestLogServices requestLogService;
+	
+	@Autowired
+	AuthorizeUserInfo userInfo;
+
+	@Autowired
+	RequestStepsLogService requestStepsLogService;
+	
+	@Autowired
+	RequestNotificationsController requestController ;
+	
+	@Autowired
+	RequestNotificationsStepsService requestNotificationsStepsService;
+	
+	@Autowired
+	SlaResponseParametersServices slaResponseParametersServ;
+	
+	@Autowired
+	RequestTechnicianService requestTechnicianService;
+	
+	@Autowired
+	RequestPartsService requestPartsService;
+	
+	@Autowired
+	RequestTechnicianService requestTechnicianServive;
+	
+	@RequestMapping(value = "/wr/getWrById/{wrId}", method = RequestMethod.GET, produces = "application/json")
+	public ResponseEntity<Object> getWrId(@PathVariable("wrId") int wrId) {
+
+		try {
+			Wr data = this.service.getWrId(wrId);
+			int problemTypeId = data.getProbTypeId();
+			String problemTypeString = this.problemTypeServices.getProblemTypeString(problemTypeId);
+			WrDto wrDto = this.mapper.map(data, WrDto.class);
+			wrDto.setProblemTypeString(problemTypeString);
+		
+			return new ResponseEntity<>(wrDto, HttpStatus.OK);
+		}catch (Exception e) {
+			String exceptionCause = CommonUtil.getExceptionCause(e);
+			String stacktrace = CommonUtil.getStakeTrace(e);
+			logger.error("Exception in WrController.getWrId: "+stacktrace,e);
+			return new ResponseEntity<>(new ResponseUtil<>(exceptionCause, HttpStatus.CONFLICT.value()), HttpStatus.OK);
+		}
+	}
+
+	@RequestMapping(value = "/wr/getAll", method = RequestMethod.GET, produces = "application/json")
+	public ResponseEntity<Object> getAllWr() {
+
+		try {
+			List<Wr> wrData = this.service.getAllWr();
+
+			List<WrDto> wrDtoData = new ArrayList<WrDto>();
+			
+			if(wrData != null) {
+				wrDtoData = this.service.convertToDtoWithProblemTypeString(wrData);
+			}
+			return new ResponseEntity<>(wrDtoData, HttpStatus.OK);
+		}catch (Exception e) {
+			String exceptionCause = CommonUtil.getExceptionCause(e);
+			String stacktrace = CommonUtil.getStakeTrace(e);
+			logger.error("Exception in WrController.getAllWr: "+stacktrace,e);
+			return new ResponseEntity<>(new ResponseUtil<>(exceptionCause, HttpStatus.CONFLICT.value()), HttpStatus.OK);
+		}
+	}
+
+	@RequestMapping(value = "/wr/saveWr", method = RequestMethod.POST, produces = "application/json")
+	public ResponseEntity<Object> saveWr(@RequestBody WrDto wr) {
+		try {
+			
+			//set null values for user checks #auto generated by query
+			wr.setIsRequestor(null);
+			wr.setIsApprover(null);
+			wr.setIsSupervisor(null);
+			wr.setIsTechnician(null);
+			
+			boolean isStatusChanged = false;
+			boolean isNewRquest = true;
+			Integer previousSlaResponseParamId = 0;
+			Integer selectedSlaResponseId  = wr.getSlaResponseParametersId();
+			Integer loggedInTechnicianId = wr.getLoggedInTechnicianId();
+			Integer wrId = wr.getWrId();
+			Wr wrData = this.mapper.map(wr, Wr.class);
+			
+			if(wrData.getWrId() != null  && wrData.getWrId() > 0) {
+				isNewRquest = false;
+				Wr previousData = this.service.getWrId(wrData.getWrId());
+				String previousStatus =  previousData.getStatus();
+				String newStatus = wrData.getStatus();
+				previousSlaResponseParamId = previousData.getSlaResponseParametersId();
+				if(!previousStatus.equalsIgnoreCase(newStatus)) {
+					isStatusChanged = true;
+				}
+			}
+			
+			if(isStatusChanged) {
+				// if status = 'Approved'
+				// update request step log with status completed and logged in user for all pending approval step
+				if( wrData.getStatus().equals("Approved") || wrData.getStatus().equals("Rejected")) {
+					 //get pending steps for approval and make them complete
+					 this.requestStepsLogService.getAllByRequestIdAndStatus(wr);	
+				}//Update parts based on usage
+				if(wrData.getStatus().equals("Rejected") || wrData.getStatus().equals("Cancelled") || wrData.getStatus().equals("Completed")) {
+					this.requestPartsService.updatePartUsage(wrData.getWrId());
+					
+					// update request techncian, if request completed by technician
+					if( (wrData.getStatus().equals("Completed")) &&
+							(loggedInTechnicianId != null) ){
+
+						this.requestTechnicianServive.updateRequestTechncian(wrData, loggedInTechnicianId);
+						
+					}
+				}
+			}
+		
+			Wr savedWrdata = service.saveOrUpdate(wrData);
+			wr.setWrId(savedWrdata.getWrId());
+			wr.setDateRequested(savedWrdata.getDateRequested().toString());
+			wr.setTimeRequested(savedWrdata.getTimeRequested().toString());
+			
+			if(isStatusChanged || wrId == null ||wrId == 0) {
+				this.addStatusLog(wr);
+			}
+			
+		if (selectedSlaResponseId != null) {
+			// for status = 'Requested'
+			if(previousSlaResponseParamId != selectedSlaResponseId) {
+				if(savedWrdata.getStatus().equals("Requested")) {
+					this.requestStepsLogService.deletePreviousLoggedSteps(wr.getWrId());
+					this.requestStepsLogService.saveRequestStepsLogAndSendNotifications(wr, selectedSlaResponseId);
+					this.checkIsAutoApprovalOrAutoIssue(wr, selectedSlaResponseId,savedWrdata);
+				}
+			}if (isStatusChanged) { // for other status
+				this.requestStepsLogService.saveRequestStepsLogAndSendNotifications(wr, selectedSlaResponseId);
+			}
+		}
+				return new ResponseEntity<>(savedWrdata, HttpStatus.OK);
+		} catch (Exception e) {
+			String exceptionCause = CommonUtil.getExceptionCause(e);
+			String stacktrace = CommonUtil.getStakeTrace(e);
+			logger.error("Exception in WrController.saveWr: "+stacktrace,e);
+			return new ResponseEntity<>(new ResponseUtil<>(exceptionCause, HttpStatus.CONFLICT.value()), HttpStatus.OK);
+		}
+	}
+	
+	@RequestMapping(value = "/wr/getAllByFilter", method = RequestMethod.POST, produces = "application/json")
+	public ResponseEntity<Object> getAllWr(@RequestBody WrFilterDTO filterData) {
+
+		try {
+			List<Wr> wrData = this.service.getAllWrBySearchFilter(filterData);
+			List<WrDto> wrDtoData = new ArrayList<WrDto>();
+
+			if(wrData != null) {
+				wrDtoData = this.service.convertToDtoWithProblemTypeString(wrData);
+			}
+			return new ResponseEntity<>(wrDtoData, HttpStatus.OK);
+		}catch (Exception e) {
+			String exceptionCause = CommonUtil.getExceptionCause(e);
+			String stacktrace = CommonUtil.getStakeTrace(e);
+			logger.error("Exception in WrController.getAllWr: "+stacktrace,e);
+			return new ResponseEntity<>(new ResponseUtil<>(exceptionCause, HttpStatus.CONFLICT.value()), HttpStatus.OK);
+		}
+	}
+	
+	@RequestMapping(value = "/wr/getAllByFilterPaginated", method = RequestMethod.POST, produces = "application/json")
+	public ResponseEntity<Object> getAllWrPaginated(@RequestBody WrFilterDTO filterData) {
+		try {
+			Map<String, Object> wrData = this.service.getAllWrBySearchFilterPaginated(filterData);
+			List<WrDto> wrDtoData = new ArrayList<WrDto>();
+			if(wrData.get("content") != null) {
+				wrDtoData = this.service.convertToDtoWithProblemTypeString((List<Wr>) wrData.get("content"));
+			}
+			wrData.put("content", wrDtoData);
+			return new ResponseEntity<>(wrData, HttpStatus.OK);
+		}catch (Exception e) {
+			String exceptionCause = CommonUtil.getExceptionCause(e);
+			String stacktrace = CommonUtil.getStakeTrace(e);
+			logger.error("Exception in WrController.getAllWrPaginated: "+stacktrace,e);
+			return new ResponseEntity<>(new ResponseUtil<>(exceptionCause, HttpStatus.CONFLICT.value()), HttpStatus.OK);
+		}
+	}
+	
+	@RequestMapping(value = "/requestLog/getByRequestId/{requestId}", method = RequestMethod.GET, produces = "application/json")
+	public ResponseEntity<Object> getRequestLogByRequestId(@PathVariable("requestId") int requestId) {
+		try {
+			List<RequestLog> requestLogs = this.requestLogService.getAllRequestLogByRequestId(requestId);
+			List<RequestLogOutPutDto> resData = new ArrayList<RequestLogOutPutDto>();
+			resData = requestLogs.stream().map(each -> this.mapper.map(each, RequestLogOutPutDto.class))
+					.collect(Collectors.toList());
+			return new ResponseEntity<>(resData, HttpStatus.OK);
+		}catch (Exception e) {
+			String exceptionCause = CommonUtil.getExceptionCause(e);
+			String stacktrace = CommonUtil.getStakeTrace(e);
+			logger.error("Exception in WrController.getRequestLogByRequestId: "+stacktrace,e);
+			return new ResponseEntity<>(new ResponseUtil<>(exceptionCause, HttpStatus.CONFLICT.value()), HttpStatus.OK);
+		}
+	}
+	
+    public void addStatusLog(WrDto wrData) {
+    	try {
+    		java.sql.Date currentDate = new java.sql.Date(Calendar.getInstance().getTime().getTime());
+    		java.sql.Time currentTime = new java.sql.Time(Calendar.getInstance().getTime().getTime());
+        	RequestLog requestLog = new RequestLog();
+        	requestLog.setRequestLogId(0);
+        	requestLog.setRequestId(wrData.getWrId());
+    		
+    		SlaResponseParameters slaResponseData = this.slaResponseParametersServ.getById(wrData.getSlaResponseParametersId());
+    		
+    		if(slaResponseData.getAutoApproval().equals("Yes") && wrData.getStatus().equals("Approved")) {
+    			requestLog.setChangedBy(null);//Auto Approval by System
+    		}
+    		else if (slaResponseData.getAutoIssue().equals("Yes") && wrData.getStatus().equals("In Process")) {
+    			requestLog.setChangedBy(null);//Auto Issue by System
+    		}else {
+    			requestLog.setChangedBy(this.userInfo.getUserIfo().getUserId() > 0 ?this.userInfo.getUserIfo().getUserId() : null );
+    		}
+    		
+        	requestLog.setStatus(wrData.getStatus());
+        	requestLog.setComments(wrData.getComments());
+        	requestLog.setDateChanged(currentDate);
+        	requestLog.setTimeChanged(currentTime);
+        	this.requestLogService.saveOrUpdate(requestLog);
+    	}catch (Exception e) {
+			String stacktrace = CommonUtil.getStakeTrace(e);
+			logger.error("Exception in WrController.addStatusLog: "+stacktrace,e);
+		}
+    }
+    
+	@RequestMapping(value = "/wr/getEscaltionDateAndTime", method = RequestMethod.POST, produces = "application/json")
+	public ResponseEntity<Object> getEscalatedRespondAndCompleteDateTime(@RequestBody  RequestDateTimeDTO requestDateTime ) {
+		try {
+			EscalationDateTimeDTO escalationDateTime = this.service.getEscalatedRespondAndCompleteDateTime(requestDateTime);
+			return new ResponseEntity<>(escalationDateTime, HttpStatus.OK); 
+		}catch (Exception e) {
+			String exceptionCause = CommonUtil.getExceptionCause(e);
+			String stacktrace = CommonUtil.getStakeTrace(e);
+			logger.error("Exception in WrController.getEscalatedRespondAndCompleteDateTime: "+stacktrace,e);
+			return new ResponseEntity<>(new ResponseUtil<>(exceptionCause, HttpStatus.CONFLICT.value()), HttpStatus.OK);
+		}
+	}
+	@RequestMapping(value = "/wr/getRequestCountByEqId", method = RequestMethod.POST, produces = "application/json")
+	private ResponseEntity<Object> getRequestCountByEqId(@RequestBody RequestReportEqDto filterData) {
+		try {
+			List<Map<String, Object>> obj = this.service.getRequestCountByEquipmentId(filterData);
+			return new ResponseEntity<>(obj, HttpStatus.OK);
+		}catch (Exception e) {
+			String exceptionCause = CommonUtil.getExceptionCause(e);
+			String stacktrace = CommonUtil.getStakeTrace(e);
+			logger.error("Exception in WrController.getRequestCountByEqId: "+stacktrace,e);
+			return new ResponseEntity<>(new ResponseUtil<>(exceptionCause, HttpStatus.CONFLICT.value()), HttpStatus.OK);
+		}
+	}
+	@RequestMapping(value = "/wr/getRequestByEqId", method = RequestMethod.POST, produces = "application/json")
+	private ResponseEntity<Object> getRequestByEqId(@RequestBody RequestReportEqDto filterData) {
+		try {
+			 List<Wr> wrData = this.service.getRequestByEquipmentId(filterData);
+			 
+			 List<WrDto> wrDtoData = new ArrayList<WrDto>();
+			 
+			if(wrData != null) {
+				wrDtoData = this.service.convertToDtoWithProblemTypeString(wrData);
+			}
+				
+			return new ResponseEntity<>(wrDtoData, HttpStatus.OK);
+		}catch (Exception e) {
+			String exceptionCause = CommonUtil.getExceptionCause(e);
+			String stacktrace = CommonUtil.getStakeTrace(e);
+			logger.error("Exception in WrController.saveClient: "+stacktrace,e);
+			return new ResponseEntity<>(new ResponseUtil<>(exceptionCause, HttpStatus.CONFLICT.value()), HttpStatus.OK);
+		}
+	}
+	public void checkIsAutoApprovalOrAutoIssue(WrDto wrData,int slaResponseParamsId,Wr savedRecord) {
+		try {
+			SlaResponseParameters slaResponseData = this.slaResponseParametersServ.getById(slaResponseParamsId);
+			
+			if(slaResponseData.getAutoApproval().equals("Yes")) {
+				wrData.setDateRequested(savedRecord.getDateRequested().toString());
+				wrData.setTimeRequested(savedRecord.getTimeRequested().toString());
+				wrData.setStatus("Approved");
+				savedRecord.setStatus("Approved");
+				savedRecord.setDateResponded(savedRecord.getDateRequested());
+				savedRecord.setTimeResponded(savedRecord.getTimeRequested());
+				this.requestStepsLogService.saveRequestStepsLogAndSendNotifications(wrData, slaResponseParamsId);
+				this.service.saveOrUpdate(savedRecord);
+				this.addStatusLog(wrData);//add status log
+			}
+			if (slaResponseData.getAutoIssue().equals("Yes")) {
+				wrData.setStatus("In Process");
+				savedRecord.setStatus("In Process");
+				this.requestStepsLogService.saveRequestStepsLogAndSendNotifications(wrData, slaResponseParamsId);
+				this.service.saveOrUpdate(savedRecord);
+				this.addStatusLog(wrData); //add status log
+				//calculate serviceWindowtimeDurationInHrs for adding required hours for request technician
+				Duration duration = Duration.between(slaResponseData.getDayStartTime().toLocalTime(), slaResponseData.getDayEndTime().toLocalTime());
+				double serviceWindowtimeDurationInHrs = duration.toHours();
+				this.requestTechnicianService.AssignResponsibleTechnicians(slaResponseData.getTeamId(), slaResponseData.getTechnicianId(), serviceWindowtimeDurationInHrs, wrData);
+			}
+		}catch (Exception e) {
+			String stacktrace = CommonUtil.getStakeTrace(e);
+			logger.error("Exception in WrController.checkIsAutoApprovalOrAutoIssue: "+stacktrace,e);
+		}
+	}
+	@RequestMapping(value = "/wr/getRequestByPartCode", method = RequestMethod.POST, produces = "application/json")
+	private ResponseEntity<Object> getRequestByPartCode(@RequestBody RequestReportEqDto filterData) {
+		 try {
+			 Map<String, Object> wrData = this.service.getRequestByPartCode(filterData);
+			 List<RequestPartsDto> resData = ((Collection<RequestParts>) wrData.get("content")).stream().map(each -> this.mapper.map(each, RequestPartsDto.class)).collect(Collectors.toList());
+			 wrData.put("content", resData);
+			 return new ResponseEntity<>(wrData, HttpStatus.OK);
+		 }catch (Exception e) {
+				String exceptionCause = CommonUtil.getExceptionCause(e);
+				String stacktrace = CommonUtil.getStakeTrace(e);
+				logger.error("Exception in WrController.getRequestByPartCode: "+stacktrace,e);
+				return new ResponseEntity<>(new ResponseUtil<>(exceptionCause, HttpStatus.CONFLICT.value()), HttpStatus.OK);
+		}
+	}
+	
+	
+	@RequestMapping(value = "/wr/getRequestByTechnicianTimeUsageAnalysis", method = RequestMethod.POST, produces = "application/json")
+	private ResponseEntity<Object> getRequestByTechnicianTimeUsageAnalysis(@RequestBody RequestReportEqDto filterData) {
+		 try {
+			 List<TechnicianTimeUsageDto> wrData = this.service.getRequestByTechnicianTimeUsageAnalysis(filterData);
+			return new ResponseEntity<>(wrData, HttpStatus.OK);
+		 }catch (Exception e) {
+			String exceptionCause = CommonUtil.getExceptionCause(e);
+			String stacktrace = CommonUtil.getStakeTrace(e);
+			logger.error("Exception in WrController.getRequestByTechnicianTimeUsageAnalysis: "+stacktrace,e);
+			return new ResponseEntity<>(new ResponseUtil<>(exceptionCause, HttpStatus.CONFLICT.value()), HttpStatus.OK);
+		}
+	}
+	
+	@RequestMapping(value = "/wr/getWorkingHoursByTechnicianIdAndRequestId", method = RequestMethod.POST, produces = "application/json")
+	private ResponseEntity<Object> getWorkingHoursByTechnicianIdAndRequestId(@RequestBody RequestReportEqDto filterData) {
+		 try {
+			 List<TechnicianTimeUsageDto> wrData = this.service.getWorkingHoursByTechnicianIdAndRequestId(filterData);
+			 return new ResponseEntity<>(wrData, HttpStatus.OK);
+		 }catch (Exception e) {
+			String exceptionCause = CommonUtil.getExceptionCause(e);
+			String stacktrace = CommonUtil.getStakeTrace(e);
+			logger.error("Exception in WrController.getWorkingHoursByTechnicianIdAndRequestId: "+stacktrace,e);
+			return new ResponseEntity<>(new ResponseUtil<>(exceptionCause, HttpStatus.CONFLICT.value()), HttpStatus.OK);
+		}
+	}
+
+	@RequestMapping(value = "/wr/getRequestByBudgetData/{requestId}", method = RequestMethod.GET, produces = "application/json")
+	public Map<String, Object> getRequestByBudgetData(@PathVariable("requestId") int requestId) {
+		List<Map<String, Object>> wrData = this.service.getBudgetForTechnician(requestId);
+		List<Map<String, Object>> partswrData = this.service.getBudgetForParts(requestId);
+		List<Map<String, Object>> toolswrData = this.service.getBudgetForTools(requestId);
+		List<Map<String, Object>> othercostswrData = this.service.getBudgetForOtherCost(requestId);
+		List<Map<String, Object>> tradeWrData = this.service.getBudgetForTrade(requestId);
+		Map<String, Object> combinedData = new HashMap<>();
+		try {
+	        combinedData.put("RequestId", requestId);
+			combinedData.put("Technician", wrData);
+			combinedData.put("Part", partswrData);
+			combinedData.put("Tools", toolswrData);
+			combinedData.put("Other Cost", othercostswrData);
+			combinedData.put("Trade", tradeWrData);
+		}catch (Exception e) {
+			String stacktrace = CommonUtil.getStakeTrace(e);
+			logger.error("Exception in WrController.getRequestByBudgetData: "+stacktrace,e);
+		}
+
+		return combinedData;
+	}
+	
+	@RequestMapping(value = "/wr/getAllBudgetByRequestId", method = RequestMethod.POST, produces = "application/json")
+	private ResponseEntity<Object> getAllRequestId(@RequestBody WrFilterDTO filterData) {
+		try {
+			List<Map<String, Object>> responseEntity = new ArrayList<Map<String, Object>>();
+			
+			if(filterData.getWrId() != null && filterData.getWrId() > 0)
+			{
+				Map<String, Object> obj = getRequestByBudgetData(filterData.getWrId() );
+				responseEntity.add(obj);
+			}
+			else
+			{
+				List<Wr> wrData = this.service.getAllWrBySearchFilter(filterData);
+				if(wrData != null) {
+					wrData.forEach(request -> {
+					Map<String, Object> obj = getRequestByBudgetData(request.getWrId());
+					responseEntity.add(obj);
+				});
+				}
+			}
+				return new ResponseEntity<>(responseEntity, HttpStatus.OK);
+		}catch (Exception e) {
+			String exceptionCause = CommonUtil.getExceptionCause(e);
+			String stacktrace = CommonUtil.getStakeTrace(e);
+			logger.error("Exception in WrController.getAllRequestId: "+stacktrace,e);
+			return new ResponseEntity<>(new ResponseUtil<>(exceptionCause, HttpStatus.CONFLICT.value()), HttpStatus.OK);
+		}
+	}
+	
+	@RequestMapping(value = "/wr/getAllStatusWithCount", method = RequestMethod.POST, produces = "application/json")
+	public ResponseEntity<Object> getAllStatusWithCount(@RequestBody WrFilterDTO filterData) {
+
+		try {
+			List<Map<String, Object>> data = this.service.getAllWrStatusCountBySearchFilter(filterData);
+			return new ResponseEntity<>(data, HttpStatus.OK);
+		}catch (Exception e) {
+			String exceptionCause = CommonUtil.getExceptionCause(e);
+			String stacktrace = CommonUtil.getStakeTrace(e);
+			logger.error("Exception in WrController.getAllWr: "+stacktrace,e);
+			return new ResponseEntity<>(new ResponseUtil<>(exceptionCause, HttpStatus.CONFLICT.value()), HttpStatus.OK);
+		}
+	}
+}
